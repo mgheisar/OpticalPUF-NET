@@ -26,19 +26,19 @@ class PairLoader(Dataset):
         return [Xtensor, ytensor]
 
 
-def preprocess(x, y, nb_classes=10, max_value=255):
-    x = x.astype('float32') / max_value
-    y = to_categorical(y, nb_classes)
-    return x, y
-
-
-def to_categorical(labels, nb_classes=None):
-    labels = np.array(labels, dtype=np.int32)
-    if not nb_classes:
-        nb_classes = np.max(labels) + 1
-    categorical = np.zeros((labels.shape[0], nb_classes), dtype=np.float32)
-    categorical[np.arange(labels.shape[0]), np.squeeze(labels)] = 1
-    return categorical
+# def preprocess(x, y, nb_classes=10, max_value=255):
+#     x = x.astype('float32') / max_value
+#     y = to_categorical(y, nb_classes)
+#     return x, y
+#
+#
+# def to_categorical(labels, nb_classes=None):
+#     labels = np.array(labels, dtype=np.int32)
+#     if not nb_classes:
+#         nb_classes = np.max(labels) + 1
+#     categorical = np.zeros((labels.shape[0], nb_classes), dtype=np.float32)
+#     categorical[np.arange(labels.shape[0]), np.squeeze(labels)] = 1
+#     return categorical
 
 
 class BalanceBatchSampler(BatchSampler):
@@ -61,8 +61,8 @@ class BalanceBatchSampler(BatchSampler):
     def __iter__(self):
         self.count = 0
         while self.count + self.batch_size <= len(self.dataset):
-            # classes = self.labels_set[int(self.count/4):int(self.count/4+self.n_classes)]
-            classes = np.random.choice(self.labels_set, self.n_classes, replace=False)
+            classes = self.labels_set[int(self.count/4):int(self.count/4+self.n_classes)]
+            # classes = np.random.choice(self.labels_set, self.n_classes, replace=False)
             indices = []
             for class_ in classes:
                 indices.extend(self.labels_to_indices[class_][self.used_label_indices_count[class_] :
@@ -121,25 +121,25 @@ class Reporter(object):
         return self
 
 
-def plot_embeddings(embeddings, targets, cls_num=10, xlim=None, ylim=None, title=None):
-    plt.figure(figsize=(10, 10))
-    # TODO init ?
-    tsne = TSNE(n_components=2, init='pca', random_state=0)
-    result = tsne.fit_transform(embeddings)
-
-    for i in range(cls_num):
-        inds = np.where(targets == i)[0]
-
-        plt.scatter(result[inds, 0], result[inds, 1], c=colors[i])
-
-    if xlim:
-        plt.xlim(xlim[0], xlim[1])
-    if ylim:
-        plt.ylim(ylim[0], ylim[1])
-    if cls_num == 10:
-        plt.legend(asc_classes[:10])
-    else:
-        plt.legend(asc_classes)
-    if title:
-        plt.title(title)
-    plt.show()
+# def plot_embeddings(embeddings, targets, cls_num=10, xlim=None, ylim=None, title=None):
+#     plt.figure(figsize=(10, 10))
+#     # TODO init ?
+#     tsne = TSNE(n_components=2, init='pca', random_state=0)
+#     result = tsne.fit_transform(embeddings)
+#
+#     for i in range(cls_num):
+#         inds = np.where(targets == i)[0]
+#
+#         plt.scatter(result[inds, 0], result[inds, 1], c=colors[i])
+#
+#     if xlim:
+#         plt.xlim(xlim[0], xlim[1])
+#     if ylim:
+#         plt.ylim(ylim[0], ylim[1])
+#     if cls_num == 10:
+#         plt.legend(asc_classes[:10])
+#     else:
+#         plt.legend(asc_classes)
+#     if title:
+#         plt.title(title)
+#     plt.show()

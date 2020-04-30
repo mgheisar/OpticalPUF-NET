@@ -203,6 +203,76 @@ class BatchHardTripletLoss(nn.Module):
         return triplet_loss, num_hard_triplets
 
 
+class BatchHardTripletLoss_v2(nn.Module):
+    """Build the triplet loss over a batch of embeddings.
+    For each anchor, we get all positives and the hardest negative to form triplets.
+    """
+
+    def __init__(self, margin=0.1, squared=False, soft_margin=True):
+        """
+        :param margin: margin for triplet loss
+        :param squared: if True, output is the pairwise squared euclidean distance matrix.
+                        if False, output is the pairwise euclidean distance matrix.
+        """
+        super(BatchHardTripletLoss_v2, self).__init__()
+        self.margin = margin
+        self.squared = squared
+        self.soft_margin = soft_margin
+
+    def forward(self, embeddings, labels):
+        """
+        :param embeddings: tensor of shape (batch_size, embed_dim)
+        :param labels: tensor of shape (batch_size, )
+        :return: triplet_loss and number of triplets
+        """
+
+        pairwise_dist = pairwise_distance(embeddings, squared=self.squared)
+
+        # get the hardest positive pairs (they should have biggest distance)
+        # First, get a mask for every valid positive (they should have same label)
+        mask_anchor_positive = get_anchor_positive_triplet_mask(labels).float()
+
+        # put to zero any element where (a, p) is not valid (valid if a != p and label(a) == label(p))
+        valid_positive_dist = pairwise_dist * mask_anchor_positive
+        n_p = len(labels[labels == labels[0]])
+        if torch.sum(valid_positive_dist > 0) == (n_p - 1) * len(labels):
+            # shape (batch_size, n_p-1)
+            all_positive_dist = valid_positive_dist[valid_positive_dist > 0].reshape((len(labels), -1))
+        else:
+            # get rid of zero positive distances
+            valid_positive_dist = (pairwise_dist + 1) * mask_anchor_positive
+            all_positive_dist = valid_positive_dist[valid_positive_dist > 0].reshape((len(labels), -1))
+            # reduce the added 1
+            all_positive_dist = all_positive_dist - 1
+
+        # for each anchor, get the hardest negative (they should have smallest distance)
+        # First, we need to get a mask for every valid negative (they should have different labels)
+        mask_anchor_negative = get_anchor_negative_triplet_mask(labels).float()
+
+        # We add the maximum value in each row to the invalid negatives (label(a) == label(n))
+        max_anchor_negative_dist, _ = torch.max(pairwise_dist, dim=1, keepdim=True)
+        anchor_negative_dist = pairwise_dist + max_anchor_negative_dist * (1.0 - mask_anchor_negative)
+
+        # shape (batch_size, 1)
+        hardest_negative_dist, _ = torch.min(anchor_negative_dist, dim=1, keepdim=True)
+
+        if self.soft_margin:
+            # Combine biggest d(a, p) and smallest d(a, n) into final triplet loss
+            triplet_loss = torch.log1p(torch.exp(all_positive_dist - hardest_negative_dist))
+
+        else:
+            # Combine biggest d(a, p) and smallest d(a, n) into final triplet loss
+            triplet_loss = F.relu(all_positive_dist - hardest_negative_dist + self.margin)
+
+        # count number of hard triplets (where triplet_loss > 0)
+        hard_triplets = torch.gt(triplet_loss, 1e-16).float()
+        num_hard_triplets = torch.sum(hard_triplets)
+
+        triplet_loss = torch.mean(triplet_loss)
+
+        return triplet_loss, num_hard_triplets
+
+
 class BatchAllTripletLoss(nn.Module):
     """Build the triplet loss over a batch of embeddings.
     We generate all the valid triplets and average the loss over the positive ones.
@@ -237,6 +307,7 @@ class BatchAllTripletLoss(nn.Module):
 
         # put to zero the invalid triplets
         mask = get_triplet_mask(labels).float()
+        num_valid_triplets = torch.sum(mask)
         # Compute a 3D tensor of size(batch_size, batch_size, batch_size)
         # triplet_loss[i, j, k] will contain the triplet loss of anchor=i, pos=j, neg=k
         # Uses broadcasting where the 1st argument has shape(batch_size, batch_size, 1)
@@ -251,6 +322,7 @@ class BatchAllTripletLoss(nn.Module):
             triplet_loss = triplet_loss * mask
 
         else:
+            # triplet_loss = anchor_positive_dist - anchor_negative_dist
             triplet_loss = anchor_positive_dist - anchor_negative_dist + self.margin
             triplet_loss = triplet_loss * mask
 
@@ -261,7 +333,7 @@ class BatchAllTripletLoss(nn.Module):
         hard_triplets = torch.gt(triplet_loss, 1e-16).float()
         num_hard_triplets = torch.sum(hard_triplets)
         triplet_loss = torch.sum(triplet_loss) / (num_hard_triplets + 1e-16)
-        return triplet_loss, num_hard_triplets
+        return triplet_loss, num_hard_triplets, num_valid_triplets
 
 
 class BatchAllWithOutlierTripletLoss(nn.Module):

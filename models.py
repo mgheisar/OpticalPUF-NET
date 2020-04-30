@@ -45,7 +45,7 @@ class modelTriplet(nn.Module):
         embedding = self.model(images)
         embedding = self.l2_norm(embedding)
         # Multiply by alpha = 10 as suggested in https://arxiv.org/pdf/1703.09507.pdf
-        #   Equation 9: number of classes in VGGFace2 dataset = 9131
+        #   Equation 9: number of classes C, P=0.9
         #   lower bound on alpha = 5, multiply alpha by 2; alpha = 10
         alpha = 10
         embedding = embedding * alpha
