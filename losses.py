@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def pairwise_distance(embeddings, squared=False):
     """Compute the 2D matrix of distances between all the embeddings.
@@ -27,13 +28,13 @@ def pairwise_distance(embeddings, squared=False):
     distances = torch.unsqueeze(square_norm, 1) - 2.0 * dot_product + torch.unsqueeze(square_norm, 0)
 
     # Because of computation errors, some distances might be negative so we put everything >= 0.0
-    distances = torch.max(distances, torch.tensor(0.0))  # .cuda()
+    distances = torch.max(distances, torch.tensor(0.0).to(device))
 
     if not squared:
         # Because the gradient of sqrt is infinite when distances == 0.0 (ex: on the diagonal)
         # we need to add a small epsilon where distances == 0.0
         mask = torch.eq(distances, 0.0)
-        mask = mask.type(torch.FloatTensor)  # .cuda
+        mask = mask.type(torch.cuda.FloatTensor) if torch.cuda.is_available() else mask.type(torch.FloatTensor)
         distances = distances + mask * 1e-16
 
         distances = torch.sqrt(distances)
@@ -53,7 +54,6 @@ def get_triplet_mask(labels):
         :param labels: shape of tensor (batch_size, )
         :return: 3D mask
         """
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # check that i, j and k are distinct
     indices_not_same = torch.eye(labels.shape[0]).to(device).byte() ^ 1
@@ -78,7 +78,6 @@ def get_anchor_positive_triplet_mask(labels):
         :param labels: tensor of shape (batch_size, )
         :return: tensor of shape (batch_size, batch_size)
         """
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # check that i and j are distinct
     indices_not_equal = torch.eye(labels.shape[0]).to(device).byte() ^ 1

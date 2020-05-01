@@ -9,6 +9,8 @@ import os
 # colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
 #           '#00ff7f', '#9400d3', '#3b3b3b', '#0000ee', '#bcd2ee']
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
 class PairLoader(Dataset):
     def __init__(self, X, y):
@@ -20,8 +22,8 @@ class PairLoader(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        Xtensor = torch.tensor(self.data[idx], dtype=torch.float) #device=torch.device('cuda')
-        ytensor = torch.tensor(self.labels[idx], dtype=torch.long)
+        Xtensor = torch.tensor(self.data[idx], dtype=torch.float).to(device)
+        ytensor = torch.tensor(self.labels[idx], dtype=torch.long).to(device)
 
         return [Xtensor, ytensor]
 

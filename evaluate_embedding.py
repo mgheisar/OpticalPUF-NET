@@ -3,7 +3,13 @@ from torch.utils.data import DataLoader
 from models import modelTriplet
 from checkpoint import *
 from metrics import *
-# torch.cuda.set_device(0)
+from losses import *
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 # load data X: input Y: class number
 dataset = np.load('dataset-puf.npz')
@@ -37,67 +43,150 @@ test_loader = DataLoader(test_dataset, batch_sampler=test_batch_sampler)
 
 
 model = modelTriplet(embedding_dimension=128, pretrained=False)
+model.to(device)
+# reload best embedding model
 best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'),
                                exp='batch_all').select_best(run='Run01').selected_ckpt
 model.load_state_dict(torch.load(best_model_filename)['model_state_dict'])
 model.eval()
+#  --------------------------------------------------------------------------------------
+# Triplet embedding examples
+#  --------------------------------------------------------------------------------------
+t = 0
+total_triplets = 0
+anchor_embeddings = []
+negative_embeddings = []
+positive_embeddings = []
+anchor_distances = []
+with torch.no_grad():
+    for batch_idx, (data, target) in enumerate(test_loader):
+        # if batch_idx > 1:
+        #     continue
+        num_triplets = len(target)*4
+        for ind in range(num_triplets):
+            classes = np.unique(target)
+            pos_class = np.random.choice(classes)
+            neg_class = np.random.choice(classes)
+
+            while len(target == pos_class) < 2:
+                pos_class = np.random.choice(classes)
+
+            while pos_class == neg_class:
+                neg_class = np.random.choice(classes)
+
+            c_p = np.where(target == pos_class)
+            c_n = np.where(target == neg_class)
+            if len(target == pos_class) == 2:
+                ianc, ipos = np.random.choice(2, size=2, replace=False)
+
+            else:
+                ianc = np.random.randint(0, len(c_p[0]))
+                ipos = np.random.randint(0, len(c_p[0]))
+                while ianc == ipos:
+                    ipos = np.random.randint(0, len(c_p[0]))
+
+            ineg = np.random.randint(0, len(c_n[0]))
+            anc_img = data[c_p[0][ianc]]
+            print(anc_img.is_cuda)  # ------------------------------------------------------------
+            pos_img = data[c_p[0][ipos]]
+            neg_img = data[c_n[0][ineg]]
+
+            anc_embedding = model(anc_img.unsqueeze(0))
+            pos_embedding = model(pos_img.unsqueeze(0))
+            neg_embedding = model(neg_img.unsqueeze(0))
+
+            pos_dist = torch.dist(anc_embedding, pos_embedding, p=2)
+            neg_dist = torch.dist(anc_embedding, neg_embedding, p=2)
+
+            if neg_dist > pos_dist:
+                t = t+1
+            anchor_embeddings.append(anc_embedding.data.numpy())
+            negative_embeddings.append(neg_embedding.data.numpy())
+            positive_embeddings.append(pos_embedding.data.numpy())
+            anchor_distances.append([pos_dist, neg_dist])
+        total_triplets += num_triplets
+    acc = t / total_triplets
+
+    anchor_embeddings = np.array(anchor_embeddings).squeeze()
+    anchor_distances = np.array(anchor_distances).squeeze()
+    positive_embeddings = np.array(positive_embeddings).squeeze()
+    negative_embeddings = np.array(negative_embeddings).squeeze()
+    pca = PCA(n_components=2)
+    anchors_pca = pca.fit_transform(anchor_embeddings)
+    negatives_pca = pca.transform(negative_embeddings)
+    positives_pca = pca.transform(positive_embeddings)
 
 
-# #--------------------------------------------------------------------------------------
-# # Clustering
-# #--------------------------------------------------------------------------------------
-# t = 0
-# total_triplets = 0
-# embeddings_data = []
-# y = []
-# with torch.no_grad():
-#     for batch_idx, (data, target) in enumerate(test_loader):
-#         if batch_idx > 1:
-#             continue
-#         embedding = model(data)
-#         embeddings_data.append(embedding.data.numpy())
-#         y.append(target.numpy())
-#
-# embeddings_data = np.array(embeddings_data).squeeze()
-# embeddings_data = embeddings_data.reshape(-1, embeddings_data.shape[-1])
-# y = np.array(y).reshape(-1)
-# pca = PCA(n_components=2)
-# embeddings_pca = pca.fit_transform(embeddings_data)
-# cm = plt.get_cmap('gist_rainbow')
-# fig = plt.figure()
-# ax = fig.add_subplot(111)
-# labels = np.unique(y)
-# NUM_COLORS = labels.shape[0]
-# print('NUM_COLORS', NUM_COLORS)
-# t = np.where(y == labels[0])
-# for i in range(NUM_COLORS):
-#     a = np.where(y == labels[i])
-#     lines = plt.scatter(embeddings_pca[a, 0], embeddings_pca[a, 1])
-#     lines.set_color(cm(i / NUM_COLORS))
-#
-# plt.show()
-# #--------------------------------------------------------------------------------------
-# # All triplet
-# #--------------------------------------------------------------------------------------
-# batch_all = BatchAllTripletLoss(margin=0.3, squared=False, soft_margin=False)
-# t = 0
-# total_triplets = 0
-# anchor_embeddings = []
-# negative_embeddings = []
-# positive_embeddings = []
-# anchor_distances = []
-# with torch.no_grad():
-#     for batch_idx, (data, target) in enumerate(test_loader):
-#         outputs = model(data)
-#         batch_all_outputs = batch_all(outputs, target)
-#         t += int(batch_all_outputs[1])
-#         total_triplets += int(batch_all_outputs[2])
-#     acc = 1 - t / total_triplets
-# print('acc=', acc, 'num triplets', total_triplets)
+NUM_COLORS = anchors_pca.shape[0]
+cm = plt.get_cmap('gist_rainbow')
+fig = plt.figure()
+ax = fig.add_subplot(111)
+for i in range(NUM_COLORS):
+    lines = plt.scatter(anchors_pca[i, 0], anchors_pca[i, 1])
+    lines.set_color(cm(i / NUM_COLORS))
+    lines = plt.scatter(negatives_pca[i, 0], negatives_pca[i, 1], marker='x')
+    lines.set_color(cm(i / NUM_COLORS))
+    lines = plt.scatter(positives_pca[i, 0], positives_pca[i, 1], marker='+')
+    lines.set_color(cm(i / NUM_COLORS))
 
-# #--------------------------------------------------------------------------------------
-# # Authentication
-# #--------------------------------------------------------------------------------------
+plt.show()
+
+print('acc = ', acc, ' num_triplets= ', total_triplets)
+#  --------------------------------------------------------------------------------------
+# Clustering
+#  --------------------------------------------------------------------------------------
+t = 0
+total_triplets = 0
+embeddings_data = []
+y = []
+with torch.no_grad():
+    for batch_idx, (data, target) in enumerate(test_loader):
+        if batch_idx > 1:
+            continue
+        embedding = model(data)
+        embeddings_data.append(embedding.data.numpy())
+        y.append(target.numpy())
+
+embeddings_data = np.array(embeddings_data).squeeze()
+embeddings_data = embeddings_data.reshape(-1, embeddings_data.shape[-1])
+y = np.array(y).reshape(-1)
+pca = PCA(n_components=2)
+embeddings_pca = pca.fit_transform(embeddings_data)
+cm = plt.get_cmap('gist_rainbow')
+fig = plt.figure()
+ax = fig.add_subplot(111)
+labels = np.unique(y)
+NUM_COLORS = labels.shape[0]
+print('NUM_COLORS', NUM_COLORS)
+t = np.where(y == labels[0])
+for i in range(NUM_COLORS):
+    a = np.where(y == labels[i])
+    lines = plt.scatter(embeddings_pca[a, 0], embeddings_pca[a, 1])
+    lines.set_color(cm(i / NUM_COLORS))
+
+plt.show()
+#  --------------------------------------------------------------------------------------
+# All triplet
+#  --------------------------------------------------------------------------------------
+batch_all = BatchAllTripletLoss(margin=0.3, squared=False, soft_margin=False)
+t = 0
+total_triplets = 0
+anchor_embeddings = []
+negative_embeddings = []
+positive_embeddings = []
+anchor_distances = []
+with torch.no_grad():
+    for batch_idx, (data, target) in enumerate(test_loader):
+        outputs = model(data)
+        batch_all_outputs = batch_all(outputs, target)
+        t += int(batch_all_outputs[1])
+        total_triplets += int(batch_all_outputs[2])
+    acc = 1 - t / total_triplets
+print('acc=', acc, 'num triplets', total_triplets)
+
+#  --------------------------------------------------------------------------------------
+# Authentication
+#  --------------------------------------------------------------------------------------
 # load data X: input Y: class number
 X = dataset['features']
 Y = dataset['labels']
@@ -149,9 +238,9 @@ data_x = np.swapaxes(data_x, 1, 3)  # N,1,d,d
 H1_x = np.swapaxes(H1_x, 1, 3)
 H0_x = np.swapaxes(H0_x, 1, 3)
 
-data_x = torch.tensor(data_x, dtype=torch.float)
-H1_x = torch.tensor(H1_x, dtype=torch.float)
-H0_x = torch.tensor(H0_x, dtype=torch.float)
+data_x = torch.tensor(data_x, dtype=torch.float).to(device)
+H1_x = torch.tensor(H1_x, dtype=torch.float).to(device)
+H0_x = torch.tensor(H0_x, dtype=torch.float).to(device)
 
 model = modelTriplet(embedding_dimension=128, pretrained=False)
 best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'),

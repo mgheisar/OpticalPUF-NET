@@ -4,6 +4,8 @@ from models import modelTriplet
 from checkpoint import *
 from metrics import *
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 # torch.cuda.set_device(0)
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 # load data X: input Y: class number
@@ -59,11 +61,12 @@ data_x = np.swapaxes(data_x, 1, 3)  # N,1,d,d
 H1_x = np.swapaxes(H1_x, 1, 3)
 H0_x = np.swapaxes(H0_x, 1, 3)
 
-data_x = torch.tensor(data_x, dtype=torch.float)
-H1_x = torch.tensor(H1_x, dtype=torch.float)
-H0_x = torch.tensor(H0_x, dtype=torch.float)
+data_x = torch.tensor(data_x, dtype=torch.float).to(device)
+H1_x = torch.tensor(H1_x, dtype=torch.float).to(device)
+H0_x = torch.tensor(H0_x, dtype=torch.float).to(device)
 
 model = modelTriplet(embedding_dimension=128, pretrained=False)
+model.to(device)
 best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'),
                                exp='batch_hard').select_best(run='Run03').selected_ckpt
 model.load_state_dict(torch.load(best_model_filename)['model_state_dict'])
