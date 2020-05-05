@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
 class modelTriplet(nn.Module):
     """Constructs a model using triplet loss.
@@ -42,6 +44,7 @@ class modelTriplet(nn.Module):
     def forward(self, images):
         """Forward pass to output the embedding vector (feature vector) after l2-normalization and multiplication
         by scalar (alpha)."""
+        # print(next(self.model.parameters()).is_cuda)
         embedding = self.model(images)
         embedding = self.l2_norm(embedding)
         # Multiply by alpha = 10 as suggested in https://arxiv.org/pdf/1703.09507.pdf

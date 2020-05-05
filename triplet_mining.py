@@ -67,13 +67,14 @@ for epoch in range(n_epoch):
     for batch_idx, (data, target) in enumerate(train_loader):
         # Apply network to get embeddings
         print(data.is_cuda)  # ----------------------------------------------------------------------
+        print(data.size())
         output = model(data)
         # Calculating loss
         loss_outputs = loss_fn(output, target)
         triplet_loss = loss_outputs[0]
         num_hard_triplets = loss_outputs[1]
-        for metric in metrics:
-            metric(output, target, loss_outputs)
+        # for metric in metrics:
+        #     metric(output, target, loss_outputs)
         triplet_loss_sum += triplet_loss
         num_triplets += num_hard_triplets
         # Backward pass
