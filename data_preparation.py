@@ -1,5 +1,5 @@
 import numpy as np
-import cv2 as cv
+from cv_importer import *
 
 
 def crop_speckle(path, d):
