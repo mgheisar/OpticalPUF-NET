@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 def pairwise_distance(embeddings, squared=False):
     """Compute the 2D matrix of distances between all the embeddings.
     Args:

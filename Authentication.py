@@ -1,12 +1,11 @@
-from utils import PairLoader, BalanceBatchSampler, Reporter
-from torch.utils.data import DataLoader
-from models import modelTriplet
-from checkpoint import *
-from metrics import *
+from utils import Reporter
+import torch
+import os
+import numpy as np
+import models
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# torch.cuda.set_device(0)
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 # load data X: input Y: class number
 dataset = np.load('dataset-puf.npz')
@@ -65,7 +64,7 @@ data_x = torch.tensor(data_x, dtype=torch.float).to(device)
 H1_x = torch.tensor(H1_x, dtype=torch.float).to(device)
 H0_x = torch.tensor(H0_x, dtype=torch.float).to(device)
 
-model = modelTriplet(embedding_dimension=128, pretrained=False)
+model = models.modelTriplet(embedding_dimension=128, pretrained=False)
 model.to(device)
 best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'),
                                exp='batch_hard').select_best(run='Run03').selected_ckpt

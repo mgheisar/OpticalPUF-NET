@@ -12,7 +12,7 @@ class modelTriplet(nn.Module):
                            Defaults to False.
     """
 
-    def __init__(self, embedding_dimension=128, pretrained=False):
+    def __init__(self, embedding_dimension=256, pretrained=False):
         super(modelTriplet, self).__init__()
         self.model = models.resnet50(pretrained=pretrained)
         input_features_fc_layer = self.model.fc.in_features

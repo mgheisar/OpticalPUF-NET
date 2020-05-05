@@ -1,15 +1,15 @@
-import numpy as np
 import torch
+import os
 import time
-from utils import PairLoader, BalanceBatchSampler, Reporter
+from utils import PairLoader, BalanceBatchSampler
 from torch.utils.data import DataLoader
-from losses import *
-from models import modelTriplet
-from checkpoint import *
-from metrics import *
+import numpy as np
+import losses
+import models
+from checkpoint import CheckPoint
+import metrics
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 # load data X: input Y: class number
@@ -42,26 +42,21 @@ train_loader = DataLoader(train_dataset, batch_sampler=train_batch_sampler)
 test_batch_sampler = BalanceBatchSampler(dataset=test_dataset, n_classes=n_classes, n_samples=n_samples)
 test_loader = DataLoader(test_dataset, batch_sampler=test_batch_sampler)
 
-bce = nn.CrossEntropyLoss()
-
-model = modelTriplet(embedding_dimension=256, pretrained=False)
+model = models.modelTriplet(embedding_dimension=128, pretrained=False)
 model.to(device)
-loss_fn = BatchAllTripletLoss(margin=0.3, squared=False, soft_margin=False)
-# loss_fn = BatchHardTripletLoss(margin=0.3, squared=False, soft_margin=True)
+# loss_fn = losses.BatchAllTripletLoss(margin=0.3, squared=False, soft_margin=False)
+loss_fn = losses.BatchHardTripletLoss(margin=0.3, squared=False, soft_margin=False)
 optimizer_model = torch.optim.Adam(model.parameters(), lr=1e-3)
 n_epoch = 100
 
 # train
 model.train()
 
-# train_hist = History(name='train/a')
-# val_hist = History(name='test/a')
-
 # learning embedding checkpointer.
 ckpter = CheckPoint(model=model, optimizer=optimizer_model,
-                    path='{}/ckpt/batch_all'.format(ROOT_DIR),
-                    prefix='Run06', interval=1, save_num=1)
-metrics = [AverageNoneZeroTripletsMetric()]
+                               path='{}/ckpt/batch_hard'.format(ROOT_DIR),
+                               prefix='Run06', interval=1, save_num=1)
+metrics = [metrics.AverageNoneZeroTripletsMetric()]
 for epoch in range(n_epoch):
     for metric in metrics:
         metric.reset()
@@ -105,4 +100,3 @@ for epoch in range(n_epoch):
             num_triplets
         )
     )
-

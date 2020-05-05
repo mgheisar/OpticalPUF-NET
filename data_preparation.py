@@ -24,7 +24,8 @@ material = "ZnO"
 thickness_in_nm = [9483, 9563, 9690, 9819, 9925, 9945, 10089, 10137, 10285, 10385, 10485, 10968, 11006, 11056, 11071,
                    11093, 11477, 11621, 11623, 11675]
 N_puf = len(thickness_in_nm)
-path_folder = "../../../Pritam TM Data1/New setup/NA_0.95/deltaV_0.03/"
+# path_folder = "../../../Pritam TM Data1/New setup/NA_0.95/deltaV_0.03/"
+path_folder = "/nfs/nas4/ID_IOT/ID_IOT/PUF_Data/NEW_Data/Pritam TM Data1/New setup/NA_0.95/deltaV_0.03/"
 date = "/2019-03-19/Run00/"
 polar = ["Horizontal/hor_", "Horizontal/ver_", "Vertical/hor_", "Vertical/ver_"]
 dataset = {}
