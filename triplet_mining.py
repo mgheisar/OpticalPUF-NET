@@ -31,7 +31,7 @@ run_name = args_list['run_name']
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 # load data X: input Y: class number
-dataset = np.load('dataset-puf-test.npz')
+dataset = np.load('dataset-puf.npz')
 X = dataset['features']
 Y = dataset['labels']
 polar = dataset['polar']
