@@ -17,9 +17,9 @@ def crop_speckle(path, d):
     return speckle
 
 
-N = 200  # number of individuals
+N = 1000  # number of individuals
 N_chlng = 919
-d = 256  # window size
+d = 224  # window size 256
 material = "ZnO"
 thickness_in_nm = [9483, 9563, 9690, 9819, 9925, 9945, 10089, 10137, 10285, 10385, 10485, 10968, 11006, 11056, 11071,
                    11093, 11477, 11621, 11623, 11675]

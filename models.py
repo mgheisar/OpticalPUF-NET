@@ -16,17 +16,20 @@ class modelTriplet(nn.Module):
 
     def __init__(self, embedding_dimension=256, pretrained=False):
         super(modelTriplet, self).__init__()
-        self.model = models.resnet50(pretrained=pretrained)
-        input_features_fc_layer = self.model.fc.in_features
-        # Output embedding
-        self.model.fc = nn.Linear(input_features_fc_layer, embedding_dimension)
-        # self.model = models.vgg16(pretrained=pretrained)
-        # input_features_fc_layer = self.model.classifier[-1].in_features
-        # mod = list(self.model.classifier.children())
-        # mod.pop()
-        # mod.append(nn.Linear(input_features_fc_layer, embedding_dimension))
-        # new_classifier = nn.Sequential(*mod)
-        # self.model.classifier = new_classifier
+
+        # self.model = models.resnet50(pretrained=pretrained)
+        # self.model.avgpool = nn.AdaptiveAvgPool2d(1)  # ----------------------------------
+        # input_features_fc_layer = self.model.fc.in_features
+        # # Output embedding
+        # self.model.fc = nn.Linear(input_features_fc_layer, embedding_dimension)
+
+        self.model = models.vgg16(pretrained=pretrained)
+        input_features_fc_layer = self.model.classifier[-1].in_features
+        mod = list(self.model.classifier.children())
+        mod.pop()
+        mod.append(nn.Linear(input_features_fc_layer, embedding_dimension))
+        new_classifier = nn.Sequential(*mod)
+        self.model.classifier = new_classifier
 
     def l2_norm(self, input):
         """Perform l2 normalization operation on an input vector.
