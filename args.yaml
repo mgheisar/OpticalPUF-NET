@@ -6,6 +6,7 @@ n_samples_test : 4
 emb_dim : 256
 model_name : "resnet50" #resnet50, vgg16, resnet18, resnet101, resnet34, inceptionresnetv2
 margin : 0.3
+margin_test : 0
 soft_margin : False #False, True
 triplet_method : "batch_hard" #batch_hard , batch_hardv2, batch_all
 lr : 0.001

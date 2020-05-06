@@ -23,11 +23,13 @@ n_samples_test = args_list['n_samples_test']
 emb_dim = args_list['emb_dim']
 model_name = args_list['model_name']
 margin = args_list['margin']
+margin_test = args_list['margin_test']
 soft_margin = args_list['soft_margin']
 triplet_method = args_list['triplet_method']
 lr = args_list['lr']
 n_epoch = args_list['n_epoch']
 run_name = args_list['run_name']
+
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 # load data X: input Y: class number
@@ -82,6 +84,39 @@ ckpter = CheckPoint(model=model, optimizer=optimizer_model, path=path_ckpt,
 # metrics = [metrics.AverageNoneZeroTripletsMetric()]
 model0 = model
 
+model.eval()
+batch_all = losses.BatchAllTripletLoss(margin=margin_test, squared=False, soft_margin=soft_margin)
+
+t = 0
+total_triplets = 0
+anchor_embeddings = []
+negative_embeddings = []
+positive_embeddings = []
+anchor_distances = []
+with torch.no_grad():
+    for batch_idx, (data, target) in enumerate(train_loader):
+        outputs = model(data)
+        batch_all_outputs = batch_all(outputs, target)
+        t += int(batch_all_outputs[1])
+        total_triplets += int(batch_all_outputs[2])
+    acc = 1 - t / total_triplets
+print('acc0 on train before training=', acc, 'num triplets', total_triplets)
+
+t = 0
+total_triplets = 0
+anchor_embeddings = []
+negative_embeddings = []
+positive_embeddings = []
+anchor_distances = []
+with torch.no_grad():
+    for batch_idx, (data, target) in enumerate(test_loader):
+        outputs = model(data)
+        batch_all_outputs = batch_all(outputs, target)
+        t += int(batch_all_outputs[1])
+        total_triplets += int(batch_all_outputs[2])
+    acc = 1 - t / total_triplets
+print('acc0 on test before training=', acc, 'num triplets', total_triplets)
+
 for epoch in range(n_epoch):
     # for metric in metrics:
     #     metric.reset()
@@ -130,7 +165,7 @@ for epoch in range(n_epoch):
 #  --------------------------------------------------------------------------------------
 model = model0
 model.eval()
-batch_all = losses.BatchAllTripletLoss(margin=margin, squared=False, soft_margin=soft_margin)
+batch_all = losses.BatchAllTripletLoss(margin=margin_test, squared=False, soft_margin=soft_margin)
 
 t = 0
 total_triplets = 0
@@ -167,7 +202,7 @@ best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'),
                                exp=triplet_method).select_best(run=run_name).selected_ckpt
 model.load_state_dict(torch.load(best_model_filename)['model_state_dict'])
 model.eval()
-batch_all = losses.BatchAllTripletLoss(margin=margin, squared=False, soft_margin=soft_margin)
+batch_all = losses.BatchAllTripletLoss(margin=margin_test, squared=False, soft_margin=soft_margin)
 
 t = 0
 total_triplets = 0
