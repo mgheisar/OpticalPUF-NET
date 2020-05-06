@@ -89,6 +89,7 @@ batch_all = losses.BatchAllTripletLoss(margin=margin_test, squared=False, soft_m
 
 t = 0
 total_triplets = 0
+loss_test = 0
 anchor_embeddings = []
 negative_embeddings = []
 positive_embeddings = []
@@ -99,11 +100,14 @@ with torch.no_grad():
         batch_all_outputs = batch_all(outputs, target)
         t += int(batch_all_outputs[1])
         total_triplets += int(batch_all_outputs[2])
+        loss_test += batch_all_outputs[0]
     acc = 1 - t / total_triplets
 print('acc0 on train before training=', acc, 'num triplets', total_triplets)
+print('loss train=', loss_test, 'total triplets', total_triplets, 'the total', loss_test*total_triplets)
 
 t = 0
 total_triplets = 0
+loss_test = 0
 anchor_embeddings = []
 negative_embeddings = []
 positive_embeddings = []
@@ -114,9 +118,10 @@ with torch.no_grad():
         batch_all_outputs = batch_all(outputs, target)
         t += int(batch_all_outputs[1])
         total_triplets += int(batch_all_outputs[2])
+        loss_test += batch_all_outputs[0]
     acc = 1 - t / total_triplets
 print('acc0 on test before training=', acc, 'num triplets', total_triplets)
-
+print('loss test=', loss_test, 'total triplets', total_triplets, 'the total', loss_test*total_triplets)
 for epoch in range(n_epoch):
     # for metric in metrics:
     #     metric.reset()
