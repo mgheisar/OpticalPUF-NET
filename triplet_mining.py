@@ -83,12 +83,13 @@ ckpter = CheckPoint(model=model, optimizer=optimizer_model, path=path_ckpt,
                     prefix=run_name, interval=1, save_num=1)
 # metrics = [metrics.AverageNoneZeroTripletsMetric()]
 model0 = model
+a = model.model.fc.weight
 
 model.eval()
 batch_all = losses.BatchAllTripletLoss(margin=margin_test, squared=False, soft_margin=soft_margin)
 
 t = 0
-total_triplets = 0
+total_triplets_train_0 = 0
 loss_test = 0
 anchor_embeddings = []
 negative_embeddings = []
@@ -99,14 +100,12 @@ with torch.no_grad():
         outputs = model(data)
         batch_all_outputs = batch_all(outputs, target)
         t += int(batch_all_outputs[1])
-        total_triplets += int(batch_all_outputs[2])
+        total_triplets_train_0 += int(batch_all_outputs[2])
         loss_test += batch_all_outputs[0]
-    acc = 1 - t / total_triplets
-print('acc0 on train before training=', acc, 'num triplets', total_triplets)
-print('loss train=', loss_test, 'total triplets', total_triplets, 'the total', loss_test*total_triplets)
+    acc_train_0 = 1 - t / total_triplets_train_0
 
 t = 0
-total_triplets = 0
+total_triplets_test_0 = 0
 loss_test = 0
 anchor_embeddings = []
 negative_embeddings = []
@@ -117,11 +116,10 @@ with torch.no_grad():
         outputs = model(data)
         batch_all_outputs = batch_all(outputs, target)
         t += int(batch_all_outputs[1])
-        total_triplets += int(batch_all_outputs[2])
+        total_triplets_test_0 += int(batch_all_outputs[2])
         loss_test += batch_all_outputs[0]
-    acc = 1 - t / total_triplets
-print('acc0 on test before training=', acc, 'num triplets', total_triplets)
-print('loss test=', loss_test, 'total triplets', total_triplets, 'the total', loss_test*total_triplets)
+    acc_test_0 = 1 - t / total_triplets_test_0
+
 for epoch in range(n_epoch):
     # for metric in metrics:
     #     metric.reset()
@@ -168,40 +166,8 @@ for epoch in range(n_epoch):
 #  --------------------------------------------------------------------------------------
 # Evaluation
 #  --------------------------------------------------------------------------------------
-model = model0
-model.eval()
-batch_all = losses.BatchAllTripletLoss(margin=margin_test, squared=False, soft_margin=soft_margin)
-
-t = 0
-total_triplets = 0
-anchor_embeddings = []
-negative_embeddings = []
-positive_embeddings = []
-anchor_distances = []
-with torch.no_grad():
-    for batch_idx, (data, target) in enumerate(train_loader):
-        outputs = model(data)
-        batch_all_outputs = batch_all(outputs, target)
-        t += int(batch_all_outputs[1])
-        total_triplets += int(batch_all_outputs[2])
-    acc = 1 - t / total_triplets
-print('acc on train before training=', acc, 'num triplets', total_triplets)
-
-t = 0
-total_triplets = 0
-anchor_embeddings = []
-negative_embeddings = []
-positive_embeddings = []
-anchor_distances = []
-with torch.no_grad():
-    for batch_idx, (data, target) in enumerate(test_loader):
-        outputs = model(data)
-        batch_all_outputs = batch_all(outputs, target)
-        t += int(batch_all_outputs[1])
-        total_triplets += int(batch_all_outputs[2])
-    acc = 1 - t / total_triplets
-print('acc on test before training=', acc, 'num triplets', total_triplets)
-
+print('acc on train before training=', acc_train_0, 'num triplets', total_triplets_train_0)
+print('acc on test before training=', acc_test_0, 'num triplets', total_triplets_test_0)
 
 best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'),
                                exp=triplet_method).select_best(run=run_name).selected_ckpt

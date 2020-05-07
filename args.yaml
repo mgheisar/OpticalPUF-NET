@@ -8,7 +8,7 @@ model_name : "resnet50" #resnet50, vgg16, resnet18, resnet101, resnet34, incepti
 margin : 0.3
 margin_test : 0
 soft_margin : False #False, True
-triplet_method : "batch_hard" #batch_hard , batch_hardv2, batch_all
+triplet_method : "batch_all" #batch_hard , batch_hardv2, batch_all
 lr : 0.001
 n_epoch : 100
 run_name : 'Run01'
