@@ -1,14 +1,14 @@
 import torch
 import os
 import time
-from utils import PairLoader, BalanceBatchSampler, Reporter
+from utils import PairLoader_large, BalanceBatchSampler_large, Reporter
 from torch.utils.data import DataLoader
 import numpy as np
 import losses
 import models
 from checkpoint import CheckPoint
 import yaml
-
+import json
 # import metrics
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -29,36 +29,26 @@ triplet_method = args_list['triplet_method']
 lr = args_list['lr']
 n_epoch = args_list['n_epoch']
 run_name = args_list['run_name']
-
+num_workers = args_list['num_workers']
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 # load data X: input Y: class number
-dataset = np.load('dataset-puf.npz')
-X = dataset['features']
-Y = dataset['labels']
-polar = dataset['polar']
-n_train = int(train_ratio * len(Y))
+with open('dataset-puf.json', 'r') as fp:
+    dataset = json.load(fp)
 
-# Sample data for training and test
-Xtrain = X[:n_train]
-Xtest = X[n_train:]
-ytrain = Y[:n_train]
-ytest = Y[n_train:]
-
-Xtrain = np.swapaxes(Xtrain, 1, 3)  # N,1,d,d
-Xtest = np.swapaxes(Xtest, 1, 3)
-n_train = len(Xtrain)
-n_test = len(Xtest)
-
-train_dataset = PairLoader(Xtrain, ytrain)
-test_dataset = PairLoader(Xtest, ytest)
+partition = dataset['partition']
+labels = dataset['labels']
+labels_train = labels['train']
+labels_test = labels['test']
+train_dataset = PairLoader_large(partition['train'], labels_train)
+test_dataset = PairLoader_large(partition['test'], labels_test)
 
 # Batch generation P(n_measurement) x K(n_PUF)
 batch_size = n_classes_train * n_samples_train
-train_batch_sampler = BalanceBatchSampler(dataset=train_dataset, n_classes=n_classes_train, n_samples=n_samples_train)
-train_loader = DataLoader(train_dataset, batch_sampler=train_batch_sampler)
-test_batch_sampler = BalanceBatchSampler(dataset=test_dataset, n_classes=n_classes_test, n_samples=n_samples_test)
-test_loader = DataLoader(test_dataset, batch_sampler=test_batch_sampler)
+train_batch_sampler = BalanceBatchSampler_large(dataset=train_dataset, n_classes=n_classes_train, n_samples=n_samples_train)
+train_loader = DataLoader(train_dataset, batch_sampler=train_batch_sampler, num_workers=num_workers)
+test_batch_sampler = BalanceBatchSampler_large(dataset=test_dataset, n_classes=n_classes_test, n_samples=n_samples_test)
+test_loader = DataLoader(test_dataset, batch_sampler=test_batch_sampler, num_workers=num_workers)
 
 model = models.modelTriplet(embedding_dimension=emb_dim, model_architecture=model_name, pretrained=False)
 model.to(device)
@@ -94,6 +84,7 @@ positive_embeddings = []
 anchor_distances = []
 with torch.no_grad():
     for batch_idx, (data, target) in enumerate(train_loader):
+        # data, target = data.to(device), target.to(device)
         outputs = model(data)
         batch_all_outputs = batch_all(outputs, target)
         t += int(batch_all_outputs[1])

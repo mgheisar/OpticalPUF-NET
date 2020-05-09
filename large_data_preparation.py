@@ -1,5 +1,6 @@
 import numpy as np
 from cv_importer import *
+import json
 
 
 def crop_speckle(path, d):
@@ -13,11 +14,12 @@ def crop_speckle(path, d):
     y0 = int(mc[1] - d / 2)
     # x1 = int(mc[0] + d / 2)  # end point
     # y1 = int(mc[1] + d / 2)
-    speckle = img[y0:y0 + d, x0:x0 + d]
-    return speckle
+    speckle_img = img[y0:y0 + d, x0:x0 + d]
+    return speckle_img
 
 
-N = 1000  # number of individuals
+train_ratio = 0.8
+N = 1000  # N_chlng * N_puf  # number of individuals
 N_chlng = 919
 d = 224  # window size 256
 material = "ZnO"
@@ -28,14 +30,13 @@ N_puf = len(thickness_in_nm)
 path_folder = "/nfs/nas4/ID_IOT/ID_IOT/PUF_Data/NEW_Data/Pritam TM Data1/New setup/NA_0.95/deltaV_0.03/"
 date = "/2019-03-19/Run00/"
 polar = ["Horizontal/hor_", "Horizontal/ver_", "Vertical/hor_", "Vertical/ver_"]
-dataset = {}
+partition = {'train': [], 'test': []}
+labels_train = {}
+labels_test = {}
 # path_folder = "../../../Pritam TM Data1/New setup/NA_0.95/deltaV_0.03/"
 # date = "/2019-03-19/Run00/Complex Speckle/field_"
 # polar = ["hor_hor_", "hor_ver_", "ver_hor_", "ver_ver_"]
-features = np.zeros((N * 4, d, d))
-labels = np.zeros(N * 4)
-labels_puf = np.zeros(N * 4)
-polariz = np.zeros(N * 4)
+features = np.zeros((1, d, d))
 indices = np.random.choice(range(N_chlng * N_puf), N, replace=False)
 polarization = ["hh", "hv", "vh", "vv"]
 for i in range(len(indices)):
@@ -44,15 +45,24 @@ for i in range(len(indices)):
     path = path_folder + material + str(thickness_in_nm[ind_puf]) + date
     for j in range(len(polar)):
         npy_file = path + polar[j] + '{:04d}'.format(ind_chlng) + ".npy"
+        data_id = str(thickness_in_nm[ind_puf]) + '_' + '{:04d}'.format(ind_chlng) + '_' + polarization[j]
         speckle = crop_speckle(npy_file, d)
         # features[i * 4 + j, :] = speckle
-        features[i * 4 + j, :] = cv.normalize(src=speckle, dst=None, alpha=0, beta=255,
-                                              norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
-        labels[i * 4 + j] = i
-        labels_puf[i * 4 + j] = ind_puf
-        polariz[i * 4 + j] = j
-
-# features = np.expand_dims(features, axis=3)
-features = np.stack((features,) * 3, axis=-1)
-np.savez('dataset-puf.npz', features=features, labels=labels, polar=polariz)
+        features = cv.normalize(src=speckle, dst=None, alpha=0, beta=255,
+                                norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
+        features = np.stack((features,) * 3, axis=-1)
+        features = np.swapaxes(features, 0, 2)  # 3,d,d
+        # features = np.expand_dims(features, axis=0)
+        if i < len(indices) * train_ratio:
+            partition['train'].append(data_id)
+            labels_train[data_id] = i
+        else:
+            partition['test'].append(data_id)
+            labels_test[data_id] = i
+        # labels[data_id] = i
+        np.save('data/'+data_id+'.npy', features)
+labels = {'train': labels_train, 'test': labels_test}
+dataset = {'partition': partition, 'labels': labels}
+with open('dataset-puf.json', 'w') as f_out:
+    json.dump(dataset, f_out)
 print('data prepared')
