@@ -1,7 +1,7 @@
-train_ratio: 0.8
+train_ratio: 0.7
 n_classes_train : 16
 n_samples_train : 4
-n_classes_test : 20
+n_classes_test : 16
 n_samples_test : 4
 emb_dim : 256
 model_name : "resnet50" #resnet50, vgg16, resnet18, resnet101, resnet34, inceptionresnetv2
@@ -10,6 +10,6 @@ margin_test : 0.3
 soft_margin : False #False, True
 triplet_method : "batch_all" #batch_hard , batch_hardv2, batch_all
 lr : 0.001
-n_epoch : 100
-run_name : 'Run03'
-num_workers : 6
+n_epoch : 1
+run_name : 'Run01-all-passive'
+num_workers : 0

@@ -47,7 +47,8 @@ class PairLoader_large(data.Dataset):
         ID = self.list_IDs[index]
 
         # Load data and get label
-        Xtensor = torch.tensor(np.load('data/' + ID + '.npy'), dtype=torch.float).to(device)
+        Xtensor = torch.tensor(np.load('/nfs/nas4/marzieh/marzieh/puf-featureextraction/data/'
+                                       + ID + '.npy'), dtype=torch.float).to(device)
         ytensor = torch.tensor(self.labels[ID], dtype=torch.long).to(device)
         # X = torch.from_numpy(np.load('data/' + ID + '.npy'))
         # y = self.labels[ID]

@@ -1,10 +1,11 @@
 import numpy as np
 from cv_importer import *
 import json
+from os import path
 
 
-def crop_speckle(path, d):
-    img_array = np.load(path)
+def crop_speckle(pathh, d):
+    img_array = np.load(pathh)
     img = np.abs(img_array)
 
     mu = cv.moments(img)
@@ -18,14 +19,14 @@ def crop_speckle(path, d):
     return speckle_img
 
 
-train_ratio = 0.8
-N = 1000  # N_chlng * N_puf  # number of individuals
+train_ratio = 0.7
 N_chlng = 919
 d = 224  # window size 256
 material = "ZnO"
 thickness_in_nm = [9483, 9563, 9690, 9819, 9925, 9945, 10089, 10137, 10285, 10385, 10485, 10968, 11006, 11056, 11071,
                    11093, 11477, 11621, 11623, 11675]
 N_puf = len(thickness_in_nm)
+N = N_chlng * N_puf  # number of individuals
 # path_folder = "../../../Pritam TM Data1/New setup/NA_0.95/deltaV_0.03/"
 path_folder = "/nfs/nas4/ID_IOT/ID_IOT/PUF_Data/NEW_Data/Pritam TM Data1/New setup/NA_0.95/deltaV_0.03/"
 date = "/2019-03-19/Run00/"
@@ -42,17 +43,19 @@ polarization = ["hh", "hv", "vh", "vv"]
 for i in range(len(indices)):
     ind_puf = int(indices[i] / N_chlng)
     ind_chlng = indices[i] - ind_puf * N_chlng
-    path = path_folder + material + str(thickness_in_nm[ind_puf]) + date
+    pathh = path_folder + material + str(thickness_in_nm[ind_puf]) + date
     for j in range(len(polar)):
-        npy_file = path + polar[j] + '{:04d}'.format(ind_chlng) + ".npy"
+        npy_file = pathh + polar[j] + '{:04d}'.format(ind_chlng) + ".npy"
         data_id = str(thickness_in_nm[ind_puf]) + '_' + '{:04d}'.format(ind_chlng) + '_' + polarization[j]
-        speckle = crop_speckle(npy_file, d)
-        # features[i * 4 + j, :] = speckle
-        features = cv.normalize(src=speckle, dst=None, alpha=0, beta=255,
-                                norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
-        features = np.stack((features,) * 3, axis=-1)
-        features = np.swapaxes(features, 0, 2)  # 3,d,d
-        # features = np.expand_dims(features, axis=0)
+        if not path.exists('data/'+data_id+'.npy'):
+            speckle = crop_speckle(npy_file, d)
+            # features[i * 4 + j, :] = speckle
+            features = cv.normalize(src=speckle, dst=None, alpha=0, beta=255,
+                                    norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
+            features = np.stack((features,) * 3, axis=-1)
+            features = np.swapaxes(features, 0, 2)  # 3,d,d
+            # features = np.expand_dims(features, axis=0)
+            np.save('data/'+data_id+'.npy', features)
         if i < len(indices) * train_ratio:
             partition['train'].append(data_id)
             labels_train[data_id] = i
@@ -60,9 +63,8 @@ for i in range(len(indices)):
             partition['test'].append(data_id)
             labels_test[data_id] = i
         # labels[data_id] = i
-        np.save('data/'+data_id+'.npy', features)
 labels = {'train': labels_train, 'test': labels_test}
 dataset = {'partition': partition, 'labels': labels}
-with open('dataset-puf.json', 'w') as f_out:
+with open('dataset-puf-all.json', 'w') as f_out:
     json.dump(dataset, f_out)
 print('data prepared')

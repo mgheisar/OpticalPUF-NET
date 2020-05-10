@@ -1,15 +1,16 @@
 import torch
 import os
 import time
-from utils import PairLoader_large, BalanceBatchSampler_large, Reporter
+from .utils import PairLoader_large, BalanceBatchSampler_large, Reporter
 from torch.utils.data import DataLoader
 import numpy as np
-import losses
-import models
-from checkpoint import CheckPoint
+from .losses import *
+from .models import *
+from .checkpoint import CheckPoint
 import yaml
 import json
 # import metrics
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 with open(r'args.yaml') as file:
@@ -33,7 +34,7 @@ num_workers = args_list['num_workers']
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 # load data X: input Y: class number
-with open('dataset-puf.json', 'r') as fp:
+with open('/nfs/nas4/marzieh/marzieh/puf-featureextraction/dataset-puf-all.json', 'r') as fp:
     dataset = json.load(fp)
 
 partition = dataset['partition']
@@ -50,17 +51,17 @@ train_loader = DataLoader(train_dataset, batch_sampler=train_batch_sampler, num_
 test_batch_sampler = BalanceBatchSampler_large(dataset=test_dataset, n_classes=n_classes_test, n_samples=n_samples_test)
 test_loader = DataLoader(test_dataset, batch_sampler=test_batch_sampler, num_workers=num_workers)
 
-model = models.modelTriplet(embedding_dimension=emb_dim, model_architecture=model_name, pretrained=False)
+model = modelTriplet(embedding_dimension=emb_dim, model_architecture=model_name, pretrained=False)
 model.to(device)
 
 if triplet_method == "batch_hard":
-    loss_fn = losses.BatchHardTripletLoss(margin=margin, squared=False, soft_margin=soft_margin)
+    loss_fn = BatchHardTripletLoss(margin=margin, squared=False, soft_margin=soft_margin)
 
 elif triplet_method == "batch_hardv2":
-    loss_fn = losses.BatchHardTripletLoss_v2(margin=margin, squared=False, soft_margin=soft_margin)
+    loss_fn = BatchHardTripletLoss_v2(margin=margin, squared=False, soft_margin=soft_margin)
 
 elif triplet_method == "batch_all":
-    loss_fn = losses.BatchAllTripletLoss(margin=margin, squared=False, soft_margin=soft_margin)
+    loss_fn = BatchAllTripletLoss(margin=margin, squared=False, soft_margin=soft_margin)
 
 optimizer_model = torch.optim.Adam(model.parameters(), lr=lr)
 
@@ -73,7 +74,7 @@ ckpter = CheckPoint(model=model, optimizer=optimizer_model, path=path_ckpt,
                     prefix=run_name, interval=1, save_num=1)
 # metrics = [metrics.AverageNoneZeroTripletsMetric()]
 model.eval()
-batch_all = losses.BatchAllTripletLoss(margin=margin_test, squared=False, soft_margin=soft_margin)
+batch_all = BatchAllTripletLoss(margin=margin_test, squared=False, soft_margin=soft_margin)
 
 t = 0
 total_triplets_train_0 = 0
@@ -82,9 +83,11 @@ anchor_embeddings = []
 negative_embeddings = []
 positive_embeddings = []
 anchor_distances = []
+
 with torch.no_grad():
     for batch_idx, (data, target) in enumerate(train_loader):
         # data, target = data.to(device), target.to(device)
+        print('batch', batch_idx)
         outputs = model(data)
         batch_all_outputs = batch_all(outputs, target)
         t += int(batch_all_outputs[1])
@@ -102,6 +105,7 @@ positive_embeddings = []
 anchor_distances = []
 with torch.no_grad():
     for batch_idx, (data, target) in enumerate(test_loader):
+        print('batch', batch_idx)
         outputs = model(data)
         batch_all_outputs = batch_all(outputs, target)
         t += int(batch_all_outputs[1])
@@ -120,6 +124,7 @@ for epoch in range(n_epoch):
         # Apply network to get embeddings
         # print(data.is_cuda)  # ----------------------------------------------------------------------
         # print(data.size())
+        print('batch', batch_idx)
         output = model(data)
         # Calculating loss
         loss_outputs = loss_fn(output, target)
@@ -162,7 +167,7 @@ best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'),
                                exp=triplet_method).select_best(run=run_name).selected_ckpt
 model.load_state_dict(torch.load(best_model_filename)['model_state_dict'])
 model.eval()
-batch_all = losses.BatchAllTripletLoss(margin=margin_test, squared=False, soft_margin=soft_margin)
+batch_all = BatchAllTripletLoss(margin=margin_test, squared=False, soft_margin=soft_margin)
 
 t = 0
 total_triplets = 0
