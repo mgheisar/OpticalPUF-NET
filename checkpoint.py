@@ -9,7 +9,7 @@ class CheckPoint(object):
     Bind model and optimizer
     """
 
-    def __init__(self, model=None, optimizer=None, path=None, prefix="", interval=5, save_num=3, verbose=True):
+    def __init__(self, model=None, optimizer=None, path=None, prefix="", interval=5, save_num=3, loss0=0, verbose=True):
         self.verbose = verbose
         self.model = model
         self.optimizer = optimizer
@@ -19,6 +19,7 @@ class CheckPoint(object):
         self.save_num = save_num
         self._monitored = []
         self._path_list = []
+        self.loss0 = loss0
         self.histories = None
         self._bind_history_objs()
 
@@ -50,6 +51,30 @@ class CheckPoint(object):
             monitor: loss_acc[monitor]
         }, full_path)
         print('[CheckPoint:]saved model to', full_path) if self.verbose else None
+
+    def last_delete_and_save(self, epoch, monitor, loss_acc):
+        """
+        delete old saved checkpoint and save new.
+        :param epoch:
+        :param monitor:
+        :param loss_acc:
+        :return:
+        """
+        # old_path = self._path_list[epoch-1]
+        old_path = os.path.join(self.path, '{},{},last_Epoch_{},{}_{:.6f}.tar'.
+                                format(self.prefix, type(self.model).__name__,
+                                       epoch-1, monitor, self.loss0))
+        if os.path.exists(old_path):
+            os.remove(old_path)
+            print('[CheckPoint:]delete file', old_path) if self.verbose else None
+        else:
+            print('[CheckPoint:]Fail to find and delete file', old_path) if self.verbose else None
+
+        new_path = os.path.join(self.path, '{},{},last_Epoch_{},{}_{:.6f}.tar'.
+                                format(self.prefix, type(self.model).__name__,
+                                       epoch, monitor, loss_acc[monitor]))
+        self.loss0 = loss_acc[monitor]
+        self.save(epoch, monitor, loss_acc, save_path=new_path)
 
     def _delete_and_save(self, epoch, monitor, loss_acc, delete_idx):
         """

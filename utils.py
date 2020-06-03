@@ -4,12 +4,11 @@ from torch.utils import data
 from torch.utils.data.sampler import BatchSampler
 import torch
 import os
-
 # from sklearn.manifold import TSNE
 # asc_classes = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14']
 # colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
 #           '#00ff7f', '#9400d3', '#3b3b3b', '#0000ee', '#bcd2ee']
-
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -47,7 +46,7 @@ class PairLoader_large(data.Dataset):
         ID = self.list_IDs[index]
 
         # Load data and get label
-        Xtensor = torch.tensor(np.load('/nfs/nas4/marzieh/marzieh/puf-featureextraction/data/'
+        Xtensor = torch.tensor(np.load(ROOT_DIR+'/data/'
                                        + ID + '.npy'), dtype=torch.float).to(device)
         ytensor = torch.tensor(self.labels[ID], dtype=torch.long).to(device)
         # X = torch.from_numpy(np.load('data/' + ID + '.npy'))
@@ -155,6 +154,8 @@ class Reporter(object):
         self.selected_epoch = None
         self.selected_log = None
         self.selected_run = None
+        self.last_epoch = 0
+        self.last_loss = 0
 
     def select_best(self, run=""):
 
@@ -184,6 +185,34 @@ class Reporter(object):
 
         ckpt_file = os.path.join(self.exp_path, best_fname)
 
+        self.selected_ckpt = ckpt_file
+
+        return self
+
+    def select_last(self, run=""):
+
+        """
+        set self.selected_run, self.selected_ckpt, self.selected_epoch
+        :param run:
+        :return:
+        """
+        matched = []
+        for fname in self.run_list:
+            if fname.startswith(run) and fname.endswith('tar'):
+                matched.append(fname)
+
+        import re
+        for s in matched:
+            if re.search('last_Epoch', s):
+                epoch = re.search('last_Epoch_(.*),loss', s).group(1)
+                loss = re.search('loss_(.*)', s).group(1)
+                last_fname = s
+
+        self.selected_run = last_fname.split(',')[0]
+        self.last_epoch = epoch
+        self.last_loss = loss
+
+        ckpt_file = os.path.join(self.exp_path, last_fname)
         self.selected_ckpt = ckpt_file
 
         return self

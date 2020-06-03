@@ -80,7 +80,7 @@ model.train()
 
 # learning embedding checkpointer.
 ckpter = CheckPoint(model=model, optimizer=optimizer_model, path=path_ckpt,
-                    prefix=run_name, interval=1, save_num=1)
+                    prefix=run_name, interval=1, save_num=3, loss0=0)
 # metrics = [metrics.AverageNoneZeroTripletsMetric()]
 model.eval()
 batch_all = losses.BatchAllTripletLoss(margin=margin_test, squared=False, soft_margin=soft_margin)
@@ -150,6 +150,8 @@ for epoch in range(n_epoch):
     # for metric in metrics:
     #     train_logs[metric.name()] = metric.value()
     # train_hist.add(logs=train_logs, epoch=epoch)
+    if epoch > 0:
+        ckpter.last_delete_and_save(epoch=epoch, monitor='loss', loss_acc=train_logs)
     if num_triplets:
         ckpter.check_on(epoch=epoch, monitor='loss', loss_acc=train_logs)
 
