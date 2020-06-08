@@ -316,8 +316,8 @@ if __name__ == '__main__':
             )
         )
 
-    dill.dump(train_hist, file=open(train_hist.name + ".pickle", "wb"))
-    dill.dump(validation_hist, file=open(validation_hist.name + ".pickle", "wb"))
+    dill.dump(train_hist, file=open("ckpt/"+triplet_method+train_hist.name + ".pickle", "wb"))
+    dill.dump(validation_hist, file=open("ckpt/"+triplet_method+validation_hist.name + ".pickle", "wb"))
 
-    # train_hist = dill.load(open(train_hist.name+".pickle", "rb"))
-    # validation_hist = dill.load(open(validation_hist.name+".pickle", "rb"))
+    # train_hist = dill.load(open("ckpt/"+triplet_method+train_hist.name+".pickle", "rb"))
+    # validation_hist = dill.load(open("ckpt/"+triplet_method+validation_hist.name+".pickle", "rb"))
