@@ -20,6 +20,8 @@ def crop_speckle(pathh, d):
 
 
 train_ratio = 0.7
+validation_ratio = 0.2
+test_ratio = 0.1
 N_chlng = 919
 d = 224  # window size 256
 material = "ZnO"
@@ -31,9 +33,10 @@ N = N_chlng * N_puf  # number of individuals
 path_folder = "/nfs/nas4/ID_IOT/ID_IOT/PUF_Data/NEW_Data/Pritam TM Data1/New setup/NA_0.95/deltaV_0.03/"
 date = "/2019-03-19/Run00/"
 polar = ["Horizontal/hor_", "Horizontal/ver_", "Vertical/hor_", "Vertical/ver_"]
-partition = {'train': [], 'test': []}
+partition = {'train': [], 'validation': [], 'test': []}
 labels_train = {}
 labels_test = {}
+labels_validation = {}
 # path_folder = "../../../Pritam TM Data1/New setup/NA_0.95/deltaV_0.03/"
 # date = "/2019-03-19/Run00/Complex Speckle/field_"
 # polar = ["hor_hor_", "hor_ver_", "ver_hor_", "ver_ver_"]
@@ -59,11 +62,14 @@ for i in range(len(indices)):
         if i < len(indices) * train_ratio:
             partition['train'].append(data_id)
             labels_train[data_id] = i
+        elif i < len(indices) * (train_ratio+validation_ratio):
+            partition['validation'].append(data_id)
+            labels_validation[data_id] = i
         else:
             partition['test'].append(data_id)
             labels_test[data_id] = i
         # labels[data_id] = i
-labels = {'train': labels_train, 'test': labels_test}
+labels = {'train': labels_train, 'validation': labels_validation, 'test': labels_test}
 dataset = {'partition': partition, 'labels': labels}
 with open('dataset-puf-all.json', 'w') as f_out:
     json.dump(dataset, f_out)

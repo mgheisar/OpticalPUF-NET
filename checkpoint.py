@@ -51,6 +51,7 @@ class CheckPoint(object):
             monitor: loss_acc[monitor]
         }, full_path)
         print('[CheckPoint:]saved model to', full_path) if self.verbose else None
+        return full_path
 
     def last_delete_and_save(self, epoch, monitor, loss_acc):
         """

@@ -130,9 +130,9 @@ def main_run():
                 embedding = model(data).cpu()
                 embedding_H0.append(embedding.data.numpy())
 
-        embedding_data = np.array(embedding_data).reshape(-1, emb_dim)
-        embedding_H1 = np.array(embedding_H1).reshape(-1, emb_dim)
-        embedding_H0 = np.array(embedding_H0).reshape(-1, emb_dim)
+        embedding_data = np.vstack(embedding_data).reshape(-1, emb_dim)
+        embedding_H1 = np.vstack(embedding_H1).reshape(-1, emb_dim)
+        embedding_H0 = np.vstack(embedding_H0).reshape(-1, emb_dim)
 
         H0_claimed_id = np.random.randint(0, N, size=NqueryH0).astype(np.int)
 

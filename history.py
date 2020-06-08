@@ -17,6 +17,8 @@ class History(object):
         self.axes = []
         self.nonzerostriplets = []
         self.eer = []
+        self.loss_all_avg = []
+        self.acc001 = []
         self.recent = None
 
     def add(self, logs, epoch):
@@ -30,6 +32,10 @@ class History(object):
             self.nonzerostriplets.append(logs['nonzeros'])
         if 'eer' in logs.keys():
             self.eer.append(logs['eer'])
+        if 'loss_all_avg' in logs.keys():
+            self.loss_all_avg.append(logs['loss_all_avg'])
+        if 'acc001' in logs.keys():
+            self.acc001.append(logs['acc001'])
 
     def set_axes(self, axes=None):
         if axes:
@@ -39,7 +45,7 @@ class History(object):
             self.axes = []
             plt.figure()
             num = int((len(self.acc) != 0) + (len(self.nonzerostriplets) != 0) + (len(self.eer) != 0) +
-                      (len(self.loss) != 0))
+                      (len(self.loss) != 0) + (len(self.acc001) != 0) + (len(self.loss_all_avg) != 0))
 
             for i in range(num):
                 self.axes.append(plt.subplot(num, 1, i + 1))
@@ -82,6 +88,16 @@ class History(object):
         if len(self.eer) != 0:
             self.axes[cnt].plot(self.epoch, self.eer)
             self.axes[cnt].legend([self.name + '/EER'])
+            self.axes[cnt].set_xticks(ticks)
+            self.axes[cnt].set_xticklabels([str(e) for e in ticks])
+        if len(self.loss_all_avg) != 0:
+            self.axes[cnt].plot(self.epoch, self.loss_all_avg)
+            self.axes[cnt].legend([self.name + '/loss-all avg'])
+            self.axes[cnt].set_xticks(ticks)
+            self.axes[cnt].set_xticklabels([str(e) for e in ticks])
+        if len(self.acc001) != 0:
+            self.axes[cnt].plot(self.epoch, self.acc001)
+            self.axes[cnt].legend([self.name + '/acc001'])
             self.axes[cnt].set_xticks(ticks)
             self.axes[cnt].set_xticklabels([str(e) for e in ticks])
 
