@@ -256,24 +256,28 @@ def query_partitioning(data_id, labels, N_enrolled, NqueryH0, seed):
     return partition_x, partition_id
 
 
-def acc_authentication(model_filename, enrolled_loader, H1_loader, H0_loader, data_loader, arg_in):
+def acc_authentication(model_filename, enrolled_loader, H1_loader, H0_loader, arg_in):
     model = models.modelTriplet()
     model.to(device)
     model.load_state_dict(torch.load(model_filename)['model_state_dict'])
     model.eval()
     Ptp01, Ptp001 = np.zeros(20), np.zeros(20)
     for i in range(len(enrolled_loader)):
+        print('enrolled', i)
         embedding_data = []
         embedding_H1 = []
         embedding_H0 = []
         with torch.no_grad():
             for batch_idx, (data, target) in enumerate(enrolled_loader[i]):
+                print('batch', batch_idx)
                 embedding = model(data).cpu()
                 embedding_data.append(embedding.data.numpy())
             for batch_idx, (data, target) in enumerate(H1_loader[i]):
+                print('batch', batch_idx)
                 embedding = model(data).cpu()
                 embedding_H1.append(embedding.data.numpy())
             for batch_idx, (data, target) in enumerate(H0_loader[i]):
+                print('batch', batch_idx)
                 embedding = model(data).cpu()
                 embedding_H0.append(embedding.data.numpy())
 
@@ -302,19 +306,7 @@ def acc_authentication(model_filename, enrolled_loader, H1_loader, H0_loader, da
 
     Ptp01 = np.mean(Ptp01)
     Ptp001 = np.mean(Ptp001)
-
-    batch_all = losses.BatchAllTripletLoss(margin=arg_in['margin_test'], squared=False, soft_margin=arg_in['soft_margin'])
-    t = 0
-    total_triplets = 0
-    with torch.no_grad():
-        for batch_idx, (data, target) in enumerate(data_loader):
-            outputs = model(data)
-            batch_all_outputs = batch_all(outputs, target)
-            t += int(batch_all_outputs[1])
-            total_triplets += int(batch_all_outputs[2])
-        loss_all_avg = t / total_triplets
-        loss_total_triplet = total_triplets
-    return Ptp01, Ptp001, loss_all_avg, loss_total_triplet
+    return Ptp01, Ptp001
 
 # def plot_embeddings(embeddings, targets, cls_num=10, xlim=None, ylim=None, title=None):
 #     plt.figure(figsize=(10, 10))

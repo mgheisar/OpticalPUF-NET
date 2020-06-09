@@ -1,7 +1,7 @@
 import torch
 import os
 import time
-from utils import *
+from utils import PairLoader_large, BalanceBatchSampler_large, Reporter, query_partitioning, acc_authentication
 from torch.utils.data import DataLoader
 import numpy as np
 import losses
@@ -57,8 +57,8 @@ if __name__ == '__main__':
                         help='The name for this run (default: "Run01-hardv2")')
     parser.add_argument('--num_workers', '--nw', type=int, default=num_workers,
                         help='number of workers for Dataloader (num_workers: 8)')
-    parser.add_argument('--start', '--start', type=int, default=0,
-                        help='Start from scratch (default: 0)')
+    parser.add_argument('--start', '--start', type=int, default=1,
+                        help='Start from scratch (default: 1)')
     parser.add_argument('--emb_dim', '--dim', type=int, default=emb_dim,
                         help='the embedding dimension of descriptors (dim: 256)')
 
@@ -145,7 +145,6 @@ if __name__ == '__main__':
     enrolled_loader = {'train': [], 'validation': []}
     H1_loader = {'train': [], 'validation': []}
     H0_loader = {'train': [], 'validation': []}
-
     for i in range(20):
         # Training set
         partition_x, partition_id = query_partitioning(partition['train'], labels_train,
@@ -173,56 +172,71 @@ if __name__ == '__main__':
     #  --------------------------------------------------------------------------------------
     if start:
         # ---------  Validation logs -----------------
+        batch_all = losses.BatchAllTripletLoss(margin=margin_test, squared=False, soft_margin=soft_margin)
+        t = 0
+        nonzeros = 0
         triplet_loss_sum = 0
         num_triplets = 0
         model.eval()
-        for batch_idx, (data, target) in enumerate(validation_loader):
-            output = model(data)
-            loss_outputs = loss_fn(output, target)
-            triplet_loss = loss_outputs[0]
-            num_hard_triplets = loss_outputs[1]
-            triplet_loss_sum += triplet_loss
-            num_triplets += num_hard_triplets
+        with torch.no_grad():
+            for batch_idx, (data, target) in enumerate(validation_loader):
+                print('batch', batch_idx)
+                output = model(data)
+                loss_outputs = loss_fn(output, target)
+                triplet_loss = loss_outputs[0]
+                num_hard_triplets = loss_outputs[1]
+                triplet_loss_sum += triplet_loss
+                num_triplets += num_hard_triplets
 
-        avg_triplet_loss = 0 if (num_triplets == 0) else triplet_loss_sum / num_triplets
-        arg_in = {'N_enrolled': N_enrolled, 'NqueryH1': NqueryH1, 'NqueryH0': NqueryH0, 'emb_dim': emb_dim,
-                  'margin_test': margin_test, 'soft_margin': soft_margin}
+                batch_all_outputs = batch_all(output, target)
+                t += int(batch_all_outputs[1])
+                nonzeros += int(batch_all_outputs[2])
+            loss_all_avg = 0 if (nonzeros == 0) else t / nonzeros
+            avg_triplet_loss = 0 if (num_triplets == 0) else triplet_loss_sum / num_triplets
+
+        arg_in = {'N_enrolled': N_enrolled, 'NqueryH1': NqueryH1, 'NqueryH0': NqueryH0, 'emb_dim': emb_dim}
         validation_logs = {'loss': avg_triplet_loss}
         new_path = ckpter.save(epoch=-1, monitor='loss', loss_acc=validation_logs)
-        Ptp01, Ptp001, loss_all_avg, nonzeros = \
-            acc_authentication(new_path, enrolled_loader['validation'],
-                               H1_loader['validation'], H0_loader['validation'], validation_loader, arg_in)
+        Ptp01, Ptp001 = acc_authentication(new_path, enrolled_loader['validation'], H1_loader['validation'],
+                                           H0_loader['validation'], arg_in)
         validation_logs = {'loss': avg_triplet_loss, 'acc': Ptp01,
                            'loss_all_avg': loss_all_avg, 'acc001': Ptp001, 'nonzeros': nonzeros}
         os.remove(new_path)
         validation_hist.add(logs=validation_logs, epoch=0)
         # ---------  Training logs -----------------
+        t = 0
+        nonzeros = 0
         triplet_loss_sum = 0
         num_triplets = 0
         model.eval()
-        for batch_idx, (data, target) in enumerate(train_loader):
-            output = model(data)
-            loss_outputs = loss_fn(output, target)
-            triplet_loss = loss_outputs[0]
-            num_hard_triplets = loss_outputs[1]
-            triplet_loss_sum += triplet_loss
-            num_triplets += num_hard_triplets
+        with torch.no_grad():
+            for batch_idx, (data, target) in enumerate(train_loader):
+                print('batch', batch_idx)
+                output = model(data)
+                loss_outputs = loss_fn(output, target)
+                triplet_loss = loss_outputs[0]
+                num_hard_triplets = loss_outputs[1]
+                triplet_loss_sum += triplet_loss
+                num_triplets += num_hard_triplets
 
-        avg_triplet_loss = 0 if (num_triplets == 0) else triplet_loss_sum / num_triplets
-        arg_in = {'N_enrolled': N_enrolled, 'NqueryH1': NqueryH1, 'NqueryH0': NqueryH0, 'emb_dim': emb_dim,
-                  'margin_test': margin_test, 'soft_margin': soft_margin}
+                batch_all_outputs = batch_all(output, target)
+                t += int(batch_all_outputs[1])
+                nonzeros += int(batch_all_outputs[2])
+            loss_all_avg = 0 if (nonzeros == 0) else t / nonzeros
+            avg_triplet_loss = 0 if (num_triplets == 0) else triplet_loss_sum / num_triplets
+
+        arg_in = {'N_enrolled': N_enrolled, 'NqueryH1': NqueryH1, 'NqueryH0': NqueryH0, 'emb_dim': emb_dim}
         train_logs = {'loss': avg_triplet_loss}
         new_path = ckpter.save(epoch=-1, monitor='loss', loss_acc=train_logs)
-        Ptp01, Ptp001, loss_all_avg, nonzeros = \
-            acc_authentication(new_path, enrolled_loader['train'],
-                               H1_loader['train'], H0_loader['train'], train_loader, arg_in)
-        train_logs = {'loss': avg_triplet_loss, 'acc': Ptp01,
-                      'loss_all_avg': loss_all_avg, 'acc001': Ptp001, 'nonzeros': nonzeros}
+        Ptp01, Ptp001 = acc_authentication(new_path, enrolled_loader['train'], H1_loader['train'],
+                                           H0_loader['train'], arg_in)
+        train_logs = {'loss': avg_triplet_loss, 'acc': Ptp01, 'loss_all_avg': loss_all_avg,
+                      'acc001': Ptp001, 'nonzeros': nonzeros}
         os.remove(new_path)
         train_hist.add(logs=train_logs, epoch=0)
     else:
         train_hist = dill.load(open(train_hist.name + ".pickle", "rb"))
-        train_hist = dill.load(open(train_hist.name + ".pickle", "rb"))
+        validation_hist = dill.load(open(validation_hist.name + ".pickle", "rb"))
     #  --------------------------------------------------------------------------------------
     # Training
     #  --------------------------------------------------------------------------------------
@@ -251,51 +265,66 @@ if __name__ == '__main__':
         # Validation History
         #  --------------------------------------------------------------------------------------
         # ---------  Validation logs -----------------
+        batch_all = losses.BatchAllTripletLoss(margin=margin_test, squared=False, soft_margin=soft_margin)
+        t = 0
+        nonzeros = 0
         triplet_loss_sum = 0
         num_triplets = 0
         model.eval()
-        for batch_idx, (data, target) in enumerate(validation_loader):
-            output = model(data)
-            loss_outputs = loss_fn(output, target)
-            triplet_loss = loss_outputs[0]
-            num_hard_triplets = loss_outputs[1]
-            triplet_loss_sum += triplet_loss
-            num_triplets += num_hard_triplets
+        with torch.no_grad():
+            for batch_idx, (data, target) in enumerate(validation_loader):
+                print('batch', batch_idx)
+                output = model(data)
+                loss_outputs = loss_fn(output, target)
+                triplet_loss = loss_outputs[0]
+                num_hard_triplets = loss_outputs[1]
+                triplet_loss_sum += triplet_loss
+                num_triplets += num_hard_triplets
 
-        avg_triplet_loss = 0 if (num_triplets == 0) else triplet_loss_sum / num_triplets
-        arg_in = {'N_enrolled': N_enrolled, 'NqueryH1': NqueryH1, 'NqueryH0': NqueryH0, 'emb_dim': emb_dim,
-                  'margin_test': margin_test, 'soft_margin': soft_margin}
+                batch_all_outputs = batch_all(output, target)
+                t += int(batch_all_outputs[1])
+                nonzeros += int(batch_all_outputs[2])
+            loss_all_avg = 0 if (nonzeros == 0) else t / nonzeros
+            avg_triplet_loss = 0 if (num_triplets == 0) else triplet_loss_sum / num_triplets
+
+        arg_in = {'N_enrolled': N_enrolled, 'NqueryH1': NqueryH1, 'NqueryH0': NqueryH0, 'emb_dim': emb_dim}
         validation_logs = {'loss': avg_triplet_loss}
         new_path = ckpter.save(epoch=-1, monitor='loss', loss_acc=validation_logs)
-        Ptp01, Ptp001, loss_all_avg, nonzeros = \
-            acc_authentication(new_path, enrolled_loader['validation'],
-                               H1_loader['validation'], H0_loader['validation'], validation_loader, arg_in)
+        Ptp01, Ptp001 = acc_authentication(new_path, enrolled_loader['validation'], H1_loader['validation'],
+                                           H0_loader['validation'], arg_in)
         validation_logs = {'loss': avg_triplet_loss, 'acc': Ptp01,
                            'loss_all_avg': loss_all_avg, 'acc001': Ptp001, 'nonzeros': nonzeros}
         os.remove(new_path)
         validation_hist.add(logs=validation_logs, epoch=epoch+1)
         # ---------  Training logs -----------------
+        t = 0
+        nonzeros = 0
         triplet_loss_sum = 0
         num_triplets = 0
         model.eval()
-        for batch_idx, (data, target) in enumerate(train_loader):
-            output = model(data)
-            loss_outputs = loss_fn(output, target)
-            triplet_loss = loss_outputs[0]
-            num_hard_triplets = loss_outputs[1]
-            triplet_loss_sum += triplet_loss
-            num_triplets += num_hard_triplets
+        with torch.no_grad():
+            for batch_idx, (data, target) in enumerate(train_loader):
+                print('batch', batch_idx)
+                output = model(data)
+                loss_outputs = loss_fn(output, target)
+                triplet_loss = loss_outputs[0]
+                num_hard_triplets = loss_outputs[1]
+                triplet_loss_sum += triplet_loss
+                num_triplets += num_hard_triplets
 
-        avg_triplet_loss = 0 if (num_triplets == 0) else triplet_loss_sum / num_triplets
-        arg_in = {'N_enrolled': N_enrolled, 'NqueryH1': NqueryH1, 'NqueryH0': NqueryH0, 'emb_dim': emb_dim,
-                  'margin_test': margin_test, 'soft_margin': soft_margin}
+                batch_all_outputs = batch_all(output, target)
+                t += int(batch_all_outputs[1])
+                nonzeros += int(batch_all_outputs[2])
+            loss_all_avg = 0 if (nonzeros == 0) else t / nonzeros
+            avg_triplet_loss = 0 if (num_triplets == 0) else triplet_loss_sum / num_triplets
+
+        arg_in = {'N_enrolled': N_enrolled, 'NqueryH1': NqueryH1, 'NqueryH0': NqueryH0, 'emb_dim': emb_dim}
         train_logs = {'loss': avg_triplet_loss}
         new_path = ckpter.save(epoch=-1, monitor='loss', loss_acc=train_logs)
-        Ptp01, Ptp001, loss_all_avg, nonzeros = \
-            acc_authentication(new_path, enrolled_loader['train'],
-                               H1_loader['train'], H0_loader['train'], train_loader, arg_in)
-        train_logs = {'loss': avg_triplet_loss, 'acc': Ptp01,
-                      'loss_all_avg': loss_all_avg, 'acc001': Ptp001, 'nonzeros': nonzeros}
+        Ptp01, Ptp001 = acc_authentication(new_path, enrolled_loader['train'], H1_loader['train'],
+                                           H0_loader['train'], arg_in)
+        train_logs = {'loss': avg_triplet_loss, 'acc': Ptp01, 'loss_all_avg': loss_all_avg,
+                      'acc001': Ptp001, 'nonzeros': nonzeros}
         os.remove(new_path)
         train_hist.add(logs=train_logs, epoch=epoch+1)
 
@@ -315,9 +344,8 @@ if __name__ == '__main__':
                 num_triplets
             )
         )
-
-    dill.dump(train_hist, file=open("ckpt/"+triplet_method+train_hist.name + ".pickle", "wb"))
-    dill.dump(validation_hist, file=open("ckpt/"+triplet_method+validation_hist.name + ".pickle", "wb"))
+        dill.dump(train_hist, file=open("ckpt/" + triplet_method + train_hist.name + ".pickle", "wb"))
+        dill.dump(validation_hist, file=open("ckpt/" + triplet_method + validation_hist.name + ".pickle", "wb"))
 
     # train_hist = dill.load(open("ckpt/"+triplet_method+train_hist.name+".pickle", "rb"))
     # validation_hist = dill.load(open("ckpt/"+triplet_method+validation_hist.name+".pickle", "rb"))
