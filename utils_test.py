@@ -25,8 +25,8 @@ class PairLoader(data.Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        Xtensor = torch.tensor(self.data[idx], dtype=torch.float).to(device)
-        ytensor = torch.tensor(self.labels[idx], dtype=torch.long).to(device)
+        Xtensor = torch.tensor(self.data[idx], dtype=torch.float)
+        ytensor = torch.tensor(self.labels[idx], dtype=torch.long)
 
         return [Xtensor, ytensor]
 
@@ -50,33 +50,6 @@ class PairLoader_large(data.Dataset):
 
         # Load data and get label
         Xtensor = torch.tensor(np.load(ROOT_DIR+'/data/'
-                                       + ID + '.npy'), dtype=torch.float).to(device)
-        ytensor = torch.tensor(self.labels[ID], dtype=torch.long).to(device)
-        # X = torch.from_numpy(np.load('data/' + ID + '.npy'))
-        # y = self.labels[ID]
-
-        return Xtensor, ytensor
-
-
-class PairLoader_large2(data.Dataset):
-    """Characterizes a dataset for PyTorch"""
-
-    def __init__(self, list_IDs, labels):
-        """Initialization"""
-        self.labels = labels
-        self.list_IDs = list_IDs
-
-    def __len__(self):
-        """Denotes the total number of samples"""
-        return len(self.list_IDs)
-
-    def __getitem__(self, index):
-        """Generates one sample of data"""
-        # Select sample
-        ID = self.list_IDs[index]
-
-        # Load data and get label
-        Xtensor = torch.tensor(np.load(ROOT_DIR+'/data2/'
                                        + ID + '.npy'), dtype=torch.float).to(device)
         ytensor = torch.tensor(self.labels[ID], dtype=torch.long).to(device)
         # X = torch.from_numpy(np.load('data/' + ID + '.npy'))
@@ -176,7 +149,7 @@ class BalanceBatchSampler(BatchSampler):
 
 
 class Reporter(object):
-    def __init__(self, ckpt_root, exp, monitor, ckpt_file=None):
+    def __init__(self, ckpt_root, exp, ckpt_file=None):
         self.ckpt_root = ckpt_root
         self.exp_path = os.path.join(self.ckpt_root, exp)
         self.run_list = os.listdir(self.exp_path)
@@ -186,7 +159,6 @@ class Reporter(object):
         self.selected_run = None
         self.last_epoch = 0
         self.last_loss = 0
-        self.monitor = monitor
 
     def select_best(self, run=""):
 
@@ -204,10 +176,7 @@ class Reporter(object):
         loss = []
         import re
         for s in matched:
-            if self.monitor == 'loss':
-                acc_str = re.search('loss_(.*)\.tar', s).group(1)
-            elif self.monitor == 'acc':
-                acc_str = re.search('acc_(.*)\.tar', s).group(1)
+            acc_str = re.search('loss_(.*)\.tar', s).group(1)
             loss.append(float(acc_str))
 
         loss = np.array(loss)
@@ -215,10 +184,7 @@ class Reporter(object):
         best_fname = matched[best_idx]
 
         self.selected_run = best_fname.split(',')[0]
-        if self.monitor == 'loss':
-            self.selected_epoch = int(re.search('Epoch_(.*),loss', best_fname).group(1))
-        elif self.monitor == 'acc':
-            self.selected_epoch = int(re.search('Epoch_(.*),acc', best_fname).group(1))
+        self.selected_epoch = int(re.search('Epoch_(.*),loss', best_fname).group(1))
 
         ckpt_file = os.path.join(self.exp_path, best_fname)
 
@@ -241,12 +207,8 @@ class Reporter(object):
         import re
         for s in matched:
             if re.search('last_Epoch', s):
-                if self.monitor == 'loss':
-                    epoch = re.search('last_Epoch_(.*),loss', s).group(1)
-                    loss = re.search('loss_(.*)', s).group(1)
-                elif self.monitor == 'acc':
-                    epoch = re.search('last_Epoch_(.*),acc', s).group(1)
-                    loss = re.search('acc_(.*)', s).group(1)
+                epoch = re.search('last_Epoch_(.*),loss', s).group(1)
+                loss = re.search('loss_(.*)', s).group(1)
                 last_fname = s
 
         self.selected_run = last_fname.split(',')[0]
@@ -262,7 +224,8 @@ class Reporter(object):
 def query_partitioning(data_id, labels, N_enrolled, NqueryH0, seed):
     np.random.seed(seed)
     NqueryH1 = N_enrolled
-    Y = np.array(list(labels.values()))
+    # Y = np.array(list(labels.values()))
+    Y = labels
     ids = np.unique(Y)
     data_ids = np.random.choice(len(ids), N_enrolled, replace=False).astype(np.int)
     mask = np.ones(len(ids), np.bool)
@@ -273,25 +236,25 @@ def query_partitioning(data_id, labels, N_enrolled, NqueryH0, seed):
     H0_ids = Non_H1_ids[temp]
 
     partition_x = {'data': [], 'H1': [], 'H0': []}
-    partition_id = {'data': {}, 'H1': {}, 'H0': {}}
+    partition_id = {'data': [], 'H1': [], 'H0': []}
     for i in range(N_enrolled):
         temp = np.where(Y == data_ids[i])
         selected_ind = np.random.choice(len(temp[0]), 2, replace=False)
 
         data_ind = temp[0][selected_ind[0]]
         partition_x['data'].append(data_id[data_ind])
-        partition_id['data'][data_id[data_ind]] = (Y[data_ind.astype(np.int)])
+        partition_id['data'].append(Y[data_ind.astype(np.int)])
 
         data_ind = temp[0][selected_ind[1]]
         partition_x['H1'].append(data_id[data_ind])
-        partition_id['H1'][data_id[data_ind]] = Y[data_ind.astype(np.int)]
+        partition_id['H1'].append(Y[data_ind.astype(np.int)])
 
     for i in range(NqueryH0):
         temp = np.where(Y == H0_ids[i])
         selected_ind = np.random.randint(0, len(temp[0]))
         data_ind = temp[0][selected_ind]
         partition_x['H0'].append(data_id[data_ind])
-        partition_id['H0'][data_id[data_ind]] = (Y[data_ind.astype(np.int)])
+        partition_id['H0'].append(Y[data_ind.astype(np.int)])
     return partition_x, partition_id
 
 
@@ -302,23 +265,28 @@ def acc_authentication(model_filename, enrolled_loader, H1_loader, H0_loader, ar
     model.eval()
     Ptp01, Ptp001 = np.zeros(20), np.zeros(20)
     for i in range(len(enrolled_loader)):
-        print('enrolled', i)
         embedding_data = []
         embedding_H1 = []
         embedding_H0 = []
         with torch.no_grad():
             t1 = time.time()
             for batch_idx, (data, target) in enumerate(enrolled_loader[i]):
+                print('batch', batch_idx)
+                data = data.to(device)
                 embedding = model(data).cpu()
                 embedding_data.append(embedding.data.numpy())
             print('t1=', time.time()-t1)
             t1 = time.time()
             for batch_idx, (data, target) in enumerate(H1_loader[i]):
+                print('batch', batch_idx)
+                data = data.to(device)
                 embedding = model(data).cpu()
                 embedding_H1.append(embedding.data.numpy())
             print('t2=', time.time()-t1)
             t1 = time.time()
             for batch_idx, (data, target) in enumerate(H0_loader[i]):
+                print('batch', batch_idx)
+                data = data.to(device)
                 embedding = model(data).cpu()
                 embedding_H0.append(embedding.data.numpy())
             print('t3=', time.time()-t1)

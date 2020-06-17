@@ -9,7 +9,7 @@ margin_test : 0.3
 soft_margin : 0 #False, True
 triplet_method : "batch_hardv2" #batch_hard , batch_hardv2, batch_all
 lr : 0.001
-n_epoch : 10
+n_epoch : 401
 run_name : 'Run01-hardv2'
 num_workers : 8
 N_enrolled : 1830

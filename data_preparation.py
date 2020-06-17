@@ -2,7 +2,7 @@ import numpy as np
 from cv_importer import *
 
 
-def crop_speckle(path, d):
+def crop_speckle1(path, d):
     img_array = np.load(path)
     img = np.abs(img_array)
 
@@ -16,6 +16,28 @@ def crop_speckle(path, d):
     speckle = img[y0:y0 + d, x0:x0 + d]
     return speckle
 
+
+def crop_speckle(pathh, d):
+    img_array = np.load(pathh)
+    img = np.abs(img_array)
+    img = cv.normalize(src=img, dst=None, alpha=0, beta=255,
+                       norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
+    img1 = ski.clear_border(img > 200.0)
+    y, x = np.nonzero(img1)
+    c_x = x.mean()
+    c_y = y.mean()
+    if c_x < int(d/2):
+        c_x = int(d/2)
+    elif c_x >= (len(img) - int(d/2)):
+        c_x = len(img) - int(d/2) - 1
+    if c_y < int(d/2):
+        c_y = int(d/2)
+    elif c_y >= (len(img) - int(d/2)):
+        c_y = len(img) - int(d/2) - 1
+    x0 = int(c_x - int(d/2))  # start point
+    y0 = int(c_y - int(d/2))
+    speckle_img = img[y0:y0 + d, x0:x0 + d]
+    return speckle_img
 
 N = 1000  # number of individuals
 N_chlng = 919
