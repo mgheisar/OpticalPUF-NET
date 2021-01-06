@@ -5,3 +5,7 @@ __pycache__/
 *.npz
 *.json
 *.sh
+*.jpg
+*.png
+*.pdf
+*.json

@@ -1,7 +1,6 @@
 import torch
 import os
 import numpy as np
-np.random.seed(0)
 
 
 class CheckPoint(object):
@@ -121,6 +120,30 @@ class CheckPoint(object):
         :param loss_acc:
         :return:
         """
+        if (not self._monitored) and epoch > 0:
+            run_list = os.listdir(self.path)
+            matched = []
+            for fname in run_list:
+                if fname.startswith(self.prefix) and fname.endswith('tar'):
+                    matched.append(fname)
+            import re
+            for s in matched:
+                if re.search('last', s):
+                    continue
+                else:
+                    if monitor == 'loss':
+                        epoch_str = re.search('Epoch_(.*),loss', s).group(1)
+                        acc_str = re.search('loss_(.*)\.tar', s).group(1)
+                    elif monitor == 'acc':
+                        epoch_str = re.search('Epoch_(.*),acc', s).group(1)
+                        acc_str = re.search('acc_(.*)\.tar', s).group(1)
+                    elif monitor == 'acc001':
+                        epoch_str = re.search('Epoch_(.*),acc001', s).group(1)
+                        acc_str = re.search('acc001_(.*)\.tar', s).group(1)
+                    self._monitored.append(float(acc_str))
+                    loss_acc_temp = {monitor: float(acc_str)}
+                    self._path_list.append(self._get_save_path(int(epoch_str), monitor, loss_acc_temp))
+
         if epoch % self.interval == 0:
             if len(self._monitored) < self.save_num:
                 self._monitored.append(loss_acc[monitor])
@@ -138,6 +161,14 @@ class CheckPoint(object):
                     if loss_acc['acc'] > min(self._monitored):
                         min_id = np.argmin(self._monitored)
                         self._monitored[int(min_id)] = loss_acc['acc']
+                        self._delete_and_save(epoch, monitor, loss_acc, delete_idx=int(min_id))
+                        print("created")
+                    else:
+                        print('[CheckPoint:]acc not improved on {:.3f}'.format(max(self._monitored))) if self.verbose else None
+                elif monitor == 'acc001':
+                    if loss_acc['acc001'] > min(self._monitored):
+                        min_id = np.argmin(self._monitored)
+                        self._monitored[int(min_id)] = loss_acc['acc001']
                         self._delete_and_save(epoch, monitor, loss_acc, delete_idx=int(min_id))
                         print("created")
                     else:

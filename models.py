@@ -13,12 +13,13 @@ class modelTriplet(nn.Module):
                            Defaults to False.
     """
 
-    def __init__(self, embedding_dimension=256, model_architecture="resnet50", pretrained=False):
+    def __init__(self, embedding_dimension=256, model_architecture="resnet50", pretrained=False, pooling=False):
         super(modelTriplet, self).__init__()
 
         if model_architecture == "resnet50":
             self.model = models.resnet50(pretrained=pretrained)
-            # self.model.avgpool = nn.AdaptiveAvgPool2d(1)  # when input size is not 224*224
+            if pooling:
+                self.model.avgpool = nn.AdaptiveAvgPool2d(1)  # when input size is not 224*224
             input_features_fc_layer = self.model.fc.in_features
             # Output embedding
             self.model.fc = nn.Linear(input_features_fc_layer, embedding_dimension)
@@ -70,10 +71,10 @@ class modelTriplet(nn.Module):
         # print(next(self.model.parameters()).is_cuda)
         embedding = self.model(images)
         embedding = self.l2_norm(embedding)
-        # Multiply by alpha = 10 as suggested in https://arxiv.org/pdf/1703.09507.pdf
-        #   Equation 9: number of classes C, P=0.9
-        #   lower bound on alpha = 5, multiply alpha by 2; alpha = 10
-        alpha = 10
-        embedding = embedding * alpha
+        # # Multiply by alpha = 10 as suggested in https://arxiv.org/pdf/1703.09507.pdf
+        # #   Equation 9: number of classes C, P=0.9
+        # #   lower bound on alpha = 5, multiply alpha by 2; alpha = 10
+        # alpha = 10
+        # embedding = embedding * alpha
 
         return embedding

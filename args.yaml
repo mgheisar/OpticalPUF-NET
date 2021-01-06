@@ -2,16 +2,15 @@ n_classes_train : 16
 n_samples_train : 4
 n_classes_test : 16
 n_samples_test : 4
-emb_dim : 256
+emb_dim : 1024
 model_name : "resnet50" #resnet50, vgg16, resnet18, resnet101, resnet34, inceptionresnetv2
 margin : 0.3
 margin_test : 0.3
 soft_margin : 0 #False, True
-triplet_method : "batch_hardv2" #batch_hard , batch_hardv2, batch_all
+triplet_method : "batch_hard" #batch_hard , batch_hardv2, batch_all
 lr : 0.001
-n_epoch : 401
-run_name : 'Run01-hardv2'
-num_workers : 8
-N_enrolled : 1830
-batch_size_p : 100
-n_save_epoch : 3
+n_epoch : 400
+run_name : 'Run001'
+num_workers : 0
+n_save_epoch : 1
+data : 'data_resizedv2'
